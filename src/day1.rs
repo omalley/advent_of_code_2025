@@ -39,8 +39,7 @@ pub fn part2(input: &[i64]) -> usize {
   for turn in input {
     match turn.cmp(&0) {
       Ordering::Less =>
-        result += ((SIZE - current).rem_euclid(SIZE) - turn)
-            .div_euclid(SIZE) as usize,
+        result += ((-current).rem_euclid(SIZE) - turn).div_euclid(SIZE) as usize,
       Ordering::Greater =>
         result += (current + turn).div_euclid(SIZE) as usize,
       _ => {}

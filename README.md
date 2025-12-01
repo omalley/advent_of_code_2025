@@ -17,7 +17,7 @@ This year's current times on my laptop are:
 
 | Time (secs) | Day |
 | ----------- | --- |
-|   0.000120 |    1 |
+|   0.000206 |    1 |
   
 The three targets that I use are:
 * cargo run --release
