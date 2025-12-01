@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use itertools::Itertools;
 
 fn parse_int(s: &str) -> Result<i64, String> {
@@ -37,16 +36,14 @@ pub fn part2(input: &[i64]) -> usize {
   let mut current = START;
   let mut result = 0;
   for turn in input {
-    match turn.cmp(&0) {
-      Ordering::Less =>
-        result += ((-current).rem_euclid(SIZE) - turn).div_euclid(SIZE) as usize,
-      Ordering::Greater =>
-        result += (current + turn).div_euclid(SIZE) as usize,
-      _ => {}
+    if *turn < 0 {
+      result += ((-current).rem_euclid(SIZE) - turn).div_euclid(SIZE);
+    } else {
+      result += (current + turn).div_euclid(SIZE);
     }
     current = (current + turn).rem_euclid(SIZE);
   }
-  result
+  result as usize
 }
 
 #[cfg(test)]
