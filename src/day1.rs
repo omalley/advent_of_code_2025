@@ -1,10 +1,18 @@
 use itertools::Itertools;
 
-fn parse_int(s: &str) -> Result<i64, String> {
+type Position = i32;
+
+/// Starting position of the dial
+const START: Position = 50;
+
+/// Number of positions on dial.
+const SIZE: Position = 100;
+
+fn parse_int(s: &str) -> Result<Position, String> {
   s.parse().map_err(|_| format!("Can't parse integer - '{s}'"))
 }
 
-fn parse_line(s: &str) -> Result<i64, String> {
+fn parse_line(s: &str) -> Result<Position, String> {
   let (direct,size) = s.split_at(1);
   let mut size = parse_int(size)?;
   if direct == "L" {
@@ -13,14 +21,11 @@ fn parse_line(s: &str) -> Result<i64, String> {
   Ok(size)
 }
 
-pub fn generator(input: &str) -> Vec<i64> {
+pub fn generator(input: &str) -> Vec<Position> {
   input.lines().map(parse_line).try_collect().expect("Can't parse input")
 }
 
-const START: i64 = 50;
-const SIZE: i64 = 100;
-
-pub fn part1(input: &[i64]) -> usize {
+pub fn part1(input: &[Position]) -> usize {
   let mut current = START;
   let mut result = 0;
   for turn in input {
@@ -32,15 +37,16 @@ pub fn part1(input: &[i64]) -> usize {
   result
 }
 
-pub fn part2(input: &[i64]) -> usize {
+pub fn part2(input: &[Position]) -> usize {
   let mut current = START;
   let mut result = 0;
   for turn in input {
-    if *turn < 0 {
-      result += ((-current).rem_euclid(SIZE) - turn).div_euclid(SIZE);
+    let covered = if *turn < 0 {
+      (-current).rem_euclid(SIZE) - turn
     } else {
-      result += (current + turn).div_euclid(SIZE);
-    }
+      current + turn
+    };
+    result += covered / SIZE;
     current = (current + turn).rem_euclid(SIZE);
   }
   result as usize
