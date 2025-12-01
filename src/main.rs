@@ -43,11 +43,10 @@ impl Answers {
     for delta in delta_list {
       let new_val = delta.get_answers();
       if let Some(prev) =
-          self.days.insert(delta.day.to_string(), new_val.clone()) {
-        if prev != new_val {
-          println!("{}", format!("Output for {} changed from {:?} to {:?}!",
-                                 delta.pretty_day(), prev, new_val).bold());
-        }
+          self.days.insert(delta.day.to_string(), new_val.clone()) &&
+          prev != new_val {
+            println!("{}", format!("Output for {} changed from {:?} to {:?}!",
+                                   delta.pretty_day(), prev, new_val).bold());
       }
     }
   }
