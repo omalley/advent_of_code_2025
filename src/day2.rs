@@ -1,9 +1,14 @@
-use std::ops::RangeInclusive;
+use core::array;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use num_integer::Integer;
+use std::ops::RangeInclusive;
 
 type Product = u64;
+
+lazy_static! {
+  static ref POWER_10: [Product; 18] = array::from_fn(|i| (10 as Product).pow(i as u32));
+}
 
 fn parse_int(s: &str) -> Result<Product, String> {
   s.parse().map_err(|_| format!("Can't parse integer - '{s}'"))
@@ -12,7 +17,7 @@ fn parse_int(s: &str) -> Result<Product, String> {
 fn parse_line(s: &str) -> Result<RangeInclusive<Product>, String> {
   let (left, right) = s.trim().split_once('-')
       .ok_or("Can't parse range '{s}'")?;
-  Ok(RangeInclusive::new(parse_int(left)?, parse_int(right)?))
+  Ok(RangeInclusive::new(parse_int(left)?.max(11), parse_int(right)?))
 }
 
 pub fn generator(input: &str) -> Vec<RangeInclusive<Product>> {
@@ -20,12 +25,10 @@ pub fn generator(input: &str) -> Vec<RangeInclusive<Product>> {
 }
 
 fn is_invalid(num: Product) -> bool {
-  if num > 10 {
-    let digits = num.ilog10() + 1;
-    if digits.is_even() {
-      let split = (10 as Product).pow(digits / 2);
-      return (num % split) == (num / split)
-    }
+  let digits = num.ilog10() + 1;
+  if digits.is_even() {
+    let split = POWER_10[digits as usize/ 2];
+    return (num % split) == (num / split)
   }
   false
 }
@@ -53,12 +56,11 @@ fn digits_repeat(num: Product, split: Product) -> bool {
 }
 
 fn is_invalid2(num: Product) -> bool {
-  if num > 10 {
-    let digits = num.ilog10() + 1;
-    for part_digit in (1..=(digits/2)).rev() {
-      if digits.is_multiple_of(part_digit) && digits_repeat(num, (10 as Product).pow(part_digit)) {
-        return true;
-      }
+  let digits = num.ilog10() + 1;
+  for part_digit in (1..=(digits/2)).rev() {
+    if digits.is_multiple_of(part_digit) &&
+        digits_repeat(num, POWER_10[part_digit as usize]) {
+      return true;
     }
   }
   false
