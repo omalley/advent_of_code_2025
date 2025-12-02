@@ -1,0 +1,83 @@
+use std::ops::RangeInclusive;
+use itertools::Itertools;
+use num_integer::Integer;
+
+fn parse_int(s: &str) -> Result<i64, String> {
+  s.parse().map_err(|_| format!("Can't parse integer - '{s}'"))
+}
+
+fn parse_line(s: &str) -> Result<RangeInclusive<i64>, String> {
+  let (left, right) = s.trim().split_once('-')
+      .ok_or("Can't parse range '{s}'")?;
+  Ok(RangeInclusive::new(parse_int(left)?, parse_int(right)?))
+}
+
+pub fn generator(input: &str) -> Vec<RangeInclusive<i64>> {
+  input.split(',').map(parse_line).try_collect().expect("Can't parse input")
+}
+
+fn is_invalid(num: i64) -> bool {
+  if num > 10 {
+    let digits = num.ilog10() + 1;
+    if digits.is_even() {
+      let split = 10_i64.pow(digits / 2);
+      return (num % split) == (num / split)
+    }
+  }
+  false
+}
+
+pub fn part1(input: &[RangeInclusive<i64>]) -> i64 {
+  input.iter().flat_map(|r| r.clone()).filter(|r| is_invalid(*r)).sum()
+}
+
+/// Does the given number repeat digits given the power of 10 in split?
+fn digits_repeat(num: i64, split: i64) -> bool {
+  let goal = num % split;
+  let mut remainder = num / split;
+  while remainder != 0 {
+    if remainder % split != goal {
+      return false;
+    }
+    remainder /= split;
+  }
+  true
+}
+
+fn is_invalid2(num: i64) -> bool {
+  if num > 10 {
+    let digits = num.ilog10() + 1;
+    for part_digit in (1..=(digits/2)).rev() {
+      if digits.is_multiple_of(part_digit) && digits_repeat(num, 10_i64.pow(part_digit)) {
+        return true;
+      }
+    }
+  }
+  false
+}
+
+pub fn part2(input: &[RangeInclusive<i64>]) -> i64 {
+  input.iter().flat_map(|r| r.clone()).filter(|r| is_invalid2(*r)).sum()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{generator, part1, part2};
+
+  const INPUT: &str =
+"11-22,95-115,998-1012,1188511880-1188511890,222220-222224,\
+1698522-1698528,446443-446449,38593856-38593862,565653-565659,\
+824824821-824824827,2121212118-2121212124";
+
+  #[test]
+  fn test_part1() {
+    let data = generator(INPUT);
+    assert_eq!(1227775554, part1(&data));
+  }
+
+  #[test]
+  fn test_part2() {
+    let data = generator(INPUT);
+    assert_eq!(4174379265, part2(&data));
+  }
+}
