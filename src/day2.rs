@@ -62,8 +62,8 @@ pub fn part1(ranges: &[RangeSlice]) -> ProductId {
     if range.digits.is_even() {
       let split = POWER_10[range.digits/2];
       for prefix in (range.range.start()/split)..=(range.range.end()/split) {
-        if range.range.contains(&(prefix * split + prefix)) {
-          result += prefix * split + prefix;
+        if range.range.contains(&(prefix * (split + 1))) {
+          result += prefix * (split + 1);
         }
       }
     }
@@ -71,34 +71,48 @@ pub fn part1(ranges: &[RangeSlice]) -> ProductId {
   result
 }
 
-/// Does the given number repeat digits given the power of 10 in split?
-fn digits_repeat(num: ProductId, split: ProductId) -> bool {
-  let goal = num % split;
-  let mut remainder = num / split;
-  while remainder != 0 {
-    if remainder % split != goal {
-      return false;
-    }
-    remainder /= split;
+/// Given a split power of 10 and a number of repetitions, make the
+/// matching expanded mask.
+/// create_expanded_mask(100, 2) = 101
+/// create_expanded_mask(1000, 3) = 1001001
+fn create_expanded_mask(split: ProductId, repetitions: usize) -> ProductId {
+  let mut result = split + 1;
+  for _ in 2..repetitions {
+    result = result * split + 1;
   }
-  true
+  result
 }
 
-fn is_invalid2(num: ProductId, digits: usize) -> bool {
-  for part_digit in (1..=(digits/2)).rev() {
-    if digits.is_multiple_of(part_digit) &&
-        digits_repeat(num, POWER_10[part_digit]) {
+/// Does the given num of length digits have a repeating pattern?
+fn has_repeats(num: ProductId, digits: usize) -> bool {
+  for part_digits in 1..=(digits/2) {
+    if digits.is_multiple_of(part_digits) &&
+        num == (num / POWER_10[digits - part_digits]) *
+            create_expanded_mask(POWER_10[part_digits], digits / part_digits) {
       return true;
     }
   }
   false
 }
 
-pub fn part2(input: &[RangeSlice]) -> ProductId {
-  input.iter()
-      .flat_map(|r| {
-        r.range.clone().filter(move |n| is_invalid2(*n, r.digits))})
-      .sum()
+pub fn part2(ranges: &[RangeSlice]) -> ProductId {
+  let mut result = 0;
+  for range in ranges {
+    for part_digits in 1..=(range.digits/2) {
+      if range.digits.is_multiple_of(part_digits) {
+        let split = POWER_10[part_digits];
+        let expanded_mask = create_expanded_mask(split, range.digits / part_digits);
+        let prefix_mask = POWER_10[range.digits - part_digits];
+        for prefix in (range.range.start()/prefix_mask)..=(range.range.end()/prefix_mask) {
+          if !has_repeats(prefix, part_digits) &&
+              range.range.contains(&(expanded_mask * prefix)) {
+            result += expanded_mask * prefix;
+          }
+        }
+      }
+    }
+  }
+  result
 }
 
 #[cfg(test)]
@@ -113,7 +127,6 @@ mod tests {
   #[test]
   fn test_part1() {
     let data = generator(INPUT);
-    println!("ranges = {data:?}");
     assert_eq!(1227775554, part1(&data));
   }
 
