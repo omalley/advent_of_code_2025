@@ -1,6 +1,5 @@
 use core::array;
 use lazy_static::lazy_static;
-use num_integer::Integer;
 use smallvec::SmallVec;
 use std::ops::RangeInclusive;
 
@@ -64,25 +63,6 @@ pub fn generator(input: &str) -> Vec<RangeSlice> {
       .collect()
 }
 
-pub fn part1(ranges: &[RangeSlice]) -> ProductId {
-  let mut result = 0;
-  for range in ranges {
-    // Ignore any ranges that have odd number of digits in their numbers.
-    if range.digits.is_even() {
-      // Get the power of 10 that splits the numbers in half.
-      let split = POWER_10[range.digits/2];
-      // Check each possible prefix to see if the resulting number is in the range.
-      for prefix in (range.range.start()/split)..=(range.range.end()/split) {
-        if range.range.contains(&(prefix * (split + 1))) {
-          // If the number is in the range, add it into the result.
-          result += prefix * (split + 1);
-        }
-      }
-    }
-  }
-  result
-}
-
 /// Given a split power of 10 and a number of repetitions, make the
 /// matching expanded mask.
 /// create_expanded_mask(100, 2) = 101
@@ -109,18 +89,19 @@ fn has_repeats(num: ProductId, digits: usize) -> bool {
   false
 }
 
-pub fn part2(ranges: &[RangeSlice]) -> ProductId {
+fn count_invalid<F, const KEEP_DUPS: bool>(ranges: &[RangeSlice], split_func: F) -> ProductId
+    where F: Fn(usize) -> RangeInclusive<usize> {
   let mut result = 0;
   for range in ranges {
     // For each possible number of pattern digits
-    for pat_digits in 1..=(range.digits/2) {
+    for pat_digits in split_func(range.digits) {
       // It must be an exact multiple of the full number of digits.
       if range.digits.is_multiple_of(pat_digits) {
         let expanded_mask = create_expanded_mask(POWER_10[pat_digits],
                                                  range.digits / pat_digits);
         let prefix_mask = POWER_10[range.digits - pat_digits];
         for prefix in (range.range.start()/prefix_mask)..=(range.range.end()/prefix_mask) {
-          if !has_repeats(prefix, pat_digits) &&
+          if (KEEP_DUPS || !has_repeats(prefix, pat_digits)) &&
               range.range.contains(&(expanded_mask * prefix)) {
             result += expanded_mask * prefix;
           }
@@ -129,6 +110,15 @@ pub fn part2(ranges: &[RangeSlice]) -> ProductId {
     }
   }
   result
+}
+
+pub fn part1(ranges: &[RangeSlice]) -> ProductId {
+  // If digits is odd, the range is empty!
+  count_invalid::<_, true>(ranges, |digits| digits.div_ceil(2)..=(digits/2))
+}
+
+pub fn part2(ranges: &[RangeSlice]) -> ProductId {
+  count_invalid::<_, false>(ranges, |digits| 1..=(digits/2))
 }
 
 #[cfg(test)]
