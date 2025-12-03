@@ -56,16 +56,19 @@ pub fn generator(input: &str) -> Vec<RangeSlice> {
       .collect()
 }
 
-fn is_invalid(num: ProductId, split: ProductId) -> bool {
-  (num % split) == (num / split)
-}
-
-pub fn part1(input: &[RangeSlice]) -> ProductId {
-  input.iter().filter(|r| r.digits.is_even())
-      .flat_map(|r| {
-        let split = POWER_10[r.digits/2];
-        r.range.clone().filter(move |n| is_invalid(*n, split))})
-      .sum()
+pub fn part1(ranges: &[RangeSlice]) -> ProductId {
+  let mut result = 0;
+  for range in ranges {
+    if range.digits.is_even() {
+      let split = POWER_10[range.digits/2];
+      for prefix in (range.range.start()/split)..=(range.range.end()/split) {
+        if range.range.contains(&(prefix * split + prefix)) {
+          result += prefix * split + prefix;
+        }
+      }
+    }
+  }
+  result
 }
 
 /// Does the given number repeat digits given the power of 10 in split?
