@@ -1,49 +1,75 @@
 use core::array;
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use num_integer::Integer;
+use smallvec::SmallVec;
 use std::ops::RangeInclusive;
 
-type Product = u64;
+type ProductId = u64;
 
 lazy_static! {
-  static ref POWER_10: [Product; 18] = array::from_fn(|i| (10 as Product).pow(i as u32));
+  /// Generate a table of the powers of 10.
+  static ref POWER_10: [ProductId; 18] =
+    array::from_fn(|i| (10 as ProductId).pow(i as u32));
 }
 
-fn parse_int(s: &str) -> Result<Product, String> {
+fn parse_int(s: &str) -> Result<ProductId, String> {
   s.parse().map_err(|_| format!("Can't parse integer - '{s}'"))
 }
 
-fn parse_line(s: &str) -> Result<RangeInclusive<Product>, String> {
+#[derive(Clone,Debug)]
+pub struct RangeSlice {
+  range: RangeInclusive<ProductId>,
+  digits: usize,
+}
+
+type RangeSmallVec = SmallVec<[RangeSlice; 2]>;
+
+fn parse_line(s: &str) -> Result<RangeSmallVec, String> {
   let (left, right) = s.trim().split_once('-')
       .ok_or("Can't parse range '{s}'")?;
-  Ok(RangeInclusive::new(parse_int(left)?.max(11), parse_int(right)?))
-}
-
-pub fn generator(input: &str) -> Vec<RangeInclusive<Product>> {
-  input.split(',').map(parse_line).try_collect().expect("Can't parse input")
-}
-
-fn is_invalid(num: Product) -> bool {
-  let digits = num.ilog10() + 1;
-  if digits.is_even() {
-    let split = POWER_10[digits as usize/ 2];
-    return (num % split) == (num / split)
+  let start = parse_int(left)?.max(1);
+  let end = parse_int(right)?.max(1);
+  let mut result: RangeSmallVec = SmallVec::new();
+  let start_digits = start.ilog10() as usize + 1;
+  let end_digits = end.ilog10() as usize + 1;
+  if start_digits == end_digits {
+    result.push(RangeSlice{range: start..=end, digits: start_digits});
+  } else {
+    result.push(RangeSlice{range: start..=(POWER_10[start_digits] - 1),
+      digits: start_digits});
+    for digits in (start_digits+1)..end_digits {
+      result.push(RangeSlice{range: POWER_10[digits-1]..=(POWER_10[digits] - 1),
+        digits});
+    }
+    result.push(RangeSlice{range: POWER_10[end_digits-1]..=end, digits: end_digits});
   }
-  false
+  Ok(result)
 }
 
-fn sum_matching<F>(input: &[RangeInclusive<Product>], filter: F) -> Product
-    where F: Fn(Product) -> bool {
-  input.iter().flat_map(|r| r.clone()).filter(|r| filter(*r)).sum()
+pub fn generator(input: &str) -> Vec<RangeSlice> {
+  input.split(',').map(parse_line)
+      .collect::<Result<Vec<RangeSmallVec>,String>>()
+      .expect("Can't parse input")
+      .iter()
+      .flat_map(|rsv| rsv.iter())
+      .cloned()
+      .collect()
 }
 
-pub fn part1(input: &[RangeInclusive<Product>]) -> Product {
-  sum_matching(input, is_invalid)
+fn is_invalid(num: ProductId, split: ProductId) -> bool {
+  (num % split) == (num / split)
+}
+
+pub fn part1(input: &[RangeSlice]) -> ProductId {
+  input.iter().filter(|r| r.digits.is_even())
+      .flat_map(|r| {
+        let split = POWER_10[r.digits/2];
+        r.range.clone().filter(move |n| is_invalid(*n, split))})
+      .sum()
 }
 
 /// Does the given number repeat digits given the power of 10 in split?
-fn digits_repeat(num: Product, split: Product) -> bool {
+fn digits_repeat(num: ProductId, split: ProductId) -> bool {
   let goal = num % split;
   let mut remainder = num / split;
   while remainder != 0 {
@@ -55,19 +81,21 @@ fn digits_repeat(num: Product, split: Product) -> bool {
   true
 }
 
-fn is_invalid2(num: Product) -> bool {
-  let digits = num.ilog10() + 1;
+fn is_invalid2(num: ProductId, digits: usize) -> bool {
   for part_digit in (1..=(digits/2)).rev() {
     if digits.is_multiple_of(part_digit) &&
-        digits_repeat(num, POWER_10[part_digit as usize]) {
+        digits_repeat(num, POWER_10[part_digit]) {
       return true;
     }
   }
   false
 }
 
-pub fn part2(input: &[RangeInclusive<Product>]) -> Product {
-  sum_matching(input, is_invalid2)
+pub fn part2(input: &[RangeSlice]) -> ProductId {
+  input.iter()
+      .flat_map(|r| {
+        r.range.clone().filter(move |n| is_invalid2(*n, r.digits))})
+      .sum()
 }
 
 #[cfg(test)]
@@ -82,6 +110,7 @@ mod tests {
   #[test]
   fn test_part1() {
     let data = generator(INPUT);
+    println!("ranges = {data:?}");
     assert_eq!(1227775554, part1(&data));
   }
 
