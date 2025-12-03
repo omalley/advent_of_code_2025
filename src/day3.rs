@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 #[derive(Debug)]
 pub struct BatteryShelf {
   rows: Vec<Vec<u64>>,
@@ -7,18 +5,25 @@ pub struct BatteryShelf {
 
 impl BatteryShelf {
   fn find_max(row: &[u64], count: usize) -> u64 {
-    row.iter().combinations(count)
-        .map(|win| win.iter().fold(0, |acc, x| acc * 10 + *x))
-        .max()
-        .expect("Can't find max")
+    assert!(count <= row.len(), "count is bigger than row");
+    let mut remaining = count;
+    let mut result = 0;
+    let mut current = 0;
+    while remaining > 0 {
+      let best = row[current..=(row.len() - remaining)].iter().max().unwrap();
+      result = result * 10 + best;
+      current = row[current..].iter().position(|&x| x == *best).unwrap() + current + 1;
+      remaining -= 1;
+    }
+    result
   }
 }
 
 fn parse_line(line: &str) -> Result<Vec<u64>, String> {
-  Ok(line.chars().map(|c| c.to_digit(10)
+  line.chars().map(|c| c.to_digit(10)
         .map(|c| c as u64)
         .ok_or_else(|| format!("Can't parse character '{c}'")))
-      .collect::<Result<Vec<u64>,String>>()?)
+      .collect::<Result<Vec<u64>,String>>()
 }
 
 pub fn generator(input: &str) -> BatteryShelf {
@@ -29,11 +34,11 @@ pub fn generator(input: &str) -> BatteryShelf {
 }
 
 pub fn part1(input: &BatteryShelf) -> u64 {
-  input.rows.iter().map(|row| BatteryShelf::find_max(&row, 2)).sum()
+  input.rows.iter().map(|row| BatteryShelf::find_max(row, 2)).sum()
 }
 
 pub fn part2(input: &BatteryShelf) -> u64 {
-  input.rows.iter().map(|row| BatteryShelf::find_max(&row, 12)).sum()
+  input.rows.iter().map(|row| BatteryShelf::find_max(row, 12)).sum()
 }
 
 #[cfg(test)]
