@@ -3,6 +3,16 @@ pub struct BatteryShelf {
   rows: Vec<Vec<u64>>,
 }
 
+fn find_max_position(row: &[u64]) -> Option<(usize, u64)> {
+  row.iter().enumerate()
+      .fold(None, |acc, cur| {
+        if let Some((_, max)) = acc && max >= *cur.1 {
+          acc
+        } else {
+          Some((cur.0, *cur.1))
+        }})
+}
+
 impl BatteryShelf {
   fn find_max(row: &[u64], count: usize) -> u64 {
     assert!(count <= row.len(), "count is bigger than row");
@@ -10,9 +20,10 @@ impl BatteryShelf {
     let mut result = 0;
     let mut current = 0;
     while remaining > 0 {
-      let best = row[current..=(row.len() - remaining)].iter().max().unwrap();
+      let (next, best) =
+          find_max_position(&row[current..=(row.len() - remaining)]).unwrap();
       result = result * 10 + best;
-      current = row[current..].iter().position(|&x| x == *best).unwrap() + current + 1;
+      current = next + current + 1;
       remaining -= 1;
     }
     result
