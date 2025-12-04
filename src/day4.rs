@@ -27,7 +27,7 @@ impl PrintShop {
     }
   }
 
-  /// Read the input and return a grid of the roll id at each
+  /// Read the input and return a grid of the RollId at each
   /// location and the number of roll ids.
   fn assign_ids(input: &str) -> Result<(IdGrid, usize), String> {
     let mut next_id = 0;
@@ -47,6 +47,7 @@ impl PrintShop {
     self.rolls[right].neighbors.push(left);
   }
 
+  /// Get the number of neighbors for each roll.
   fn find_neighbors(&self) -> Vec<usize> {
     self.rolls.iter().map(|r| r.neighbors.len()).collect()
   }
@@ -57,15 +58,19 @@ pub fn generator(input: &str) -> PrintShop {
       PrintShop::assign_ids(input).expect("Invalid input");
   let width = id_grid[0].len();
   let mut result = PrintShop{rolls: (0..max_id).map(|_| Roll::default()).collect()};
+  // Go through the grid and build the graph of neighbors for each roll.
   for (y, row) in id_grid.iter().enumerate() {
     for (x, loc) in row.iter().enumerate() {
       if let Some(id) = loc {
+        // Add the neighbors above the current location (y - 1).
         if y != 0 {
+          // Look in that row at x-1 to x+1 for neighbor rolls.
           for prev in
-              id_grid[y -1][(x.max(1)-1)..(x+2).min(width)].iter().flatten() {
+              id_grid[y - 1][(x.max(1)-1)..(x+2).min(width)].iter().flatten() {
             result.add_neighbors(*prev, *id);
           }
         }
+        // Check for neighbor to the left
         if x != 0 && let Some(prev) = row[x - 1] {
           result.add_neighbors(prev, *id);
         }
@@ -80,10 +85,13 @@ pub fn part1(input: &PrintShop) -> usize {
 }
 
 pub fn part2(input: &PrintShop) -> usize {
-  let mut neighbors = input.find_neighbors();
-  let mut pending = neighbors.iter().enumerate()
+  // The count of neighbors for each roll.
+  let mut neighbor_count = input.find_neighbors();
+  // The list of nodes that we need to mark as moved.
+  let mut pending = neighbor_count.iter().enumerate()
       .filter(|(_, count)| **count < PrintShop::MIN_NEIGHBORS)
       .map(|(id, _)| id).collect::<Vec<_>>();
+  // The rolls that have been moved out.
   let mut moved = vec![false; input.rolls.len()];
   let mut result = 0;
   while let Some(id) = pending.pop() {
@@ -91,10 +99,11 @@ pub fn part2(input: &PrintShop) -> usize {
       moved[id] = true;
       result += 1;
       for neighbor in &input.rolls[id].neighbors {
-        if neighbors[*neighbor] == PrintShop::MIN_NEIGHBORS {
+        // The neighbor has dropped below the minimum, so mark it to move.
+        if neighbor_count[*neighbor] == PrintShop::MIN_NEIGHBORS {
           pending.push(*neighbor);
         }
-        neighbors[*neighbor] -= 1;
+        neighbor_count[*neighbor] -= 1;
       }
     }
   }
