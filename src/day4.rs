@@ -8,6 +8,8 @@ pub struct Roll {
   neighbors: NeighborVec,
 }
 
+type IdGrid = Vec<Vec<Option<RollId>>>;
+
 #[derive(Debug)]
 pub struct PrintShop {
   rolls: Vec<Roll>,
@@ -27,7 +29,7 @@ impl PrintShop {
 
   /// Read the input and return a grid of the roll id at each
   /// location and the number of roll ids.
-  fn assign_ids(input: &str) -> Result<(Vec<Vec<Option<RollId>>>, usize), String> {
+  fn assign_ids(input: &str) -> Result<(IdGrid, usize), String> {
     let mut next_id = 0;
     let result = input.lines().map(|line| {
       line.chars().map(|ch| if Self::parse_char(ch)? {
@@ -63,16 +65,13 @@ pub fn generator(input: &str) -> PrintShop {
       if let Some(id) = loc {
         result.rolls.push(Roll{neighbors: NeighborVec::new()});
         if y != 0 {
-          for prev_x in (x.max(1)-1)..(x+2).min(width) {
-            if let Some(prev) = id_grid[y-1][prev_x] {
-              result.add_neighbors(prev, *id);
-            }
+          for prev in
+              id_grid[y -1][(x.max(1)-1)..(x+2).min(width)].iter().flatten() {
+            result.add_neighbors(*prev, *id);
           }
         }
-        if x != 0 {
-          if let Some(prev) = row[x - 1] {
-            result.add_neighbors(prev, *id);
-          }
+        if x != 0 && let Some(prev) = row[x - 1] {
+          result.add_neighbors(prev, *id);
         }
       }
     }
