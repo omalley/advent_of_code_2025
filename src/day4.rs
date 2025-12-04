@@ -87,14 +87,14 @@ pub fn part2(input: &PrintShop) -> usize {
   let mut moved = vec![false; input.rolls.len()];
   let mut result = 0;
   while let Some(id) = pending.pop() {
-    if !moved[id] && neighbors[id] < PrintShop::MIN_NEIGHBORS {
+    if !moved[id] {
       moved[id] = true;
       result += 1;
       for neighbor in &input.rolls[id].neighbors {
-        if !moved[*neighbor] {
-          neighbors[*neighbor] -= 1;
+        if neighbors[*neighbor] == PrintShop::MIN_NEIGHBORS {
           pending.push(*neighbor);
         }
+        neighbors[*neighbor] -= 1;
       }
     }
   }
