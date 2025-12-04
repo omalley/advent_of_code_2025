@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 type RollId = usize;
 type NeighborVec = SmallVec<[RollId; 8]>;
 
-#[derive(Debug)]
+#[derive(Clone,Debug,Default)]
 pub struct Roll {
   neighbors: NeighborVec,
 }
@@ -47,11 +47,8 @@ impl PrintShop {
     self.rolls[right].neighbors.push(left);
   }
 
-  fn find_moveable(&self) -> Vec<RollId> {
-    self.rolls.iter().enumerate()
-        .filter(|(_, roll)| roll.neighbors.len() < Self::MIN_NEIGHBORS)
-        .map(|(i, _)| i)
-        .collect()
+  fn find_neighbors(&self) -> Vec<usize> {
+    self.rolls.iter().map(|r| r.neighbors.len()).collect()
   }
 }
 
@@ -59,11 +56,10 @@ pub fn generator(input: &str) -> PrintShop {
   let (id_grid, max_id) =
       PrintShop::assign_ids(input).expect("Invalid input");
   let width = id_grid[0].len();
-  let mut result = PrintShop{rolls: Vec::with_capacity(max_id)};
+  let mut result = PrintShop{rolls: (0..max_id).map(|_| Roll::default()).collect()};
   for (y, row) in id_grid.iter().enumerate() {
     for (x, loc) in row.iter().enumerate() {
       if let Some(id) = loc {
-        result.rolls.push(Roll{neighbors: NeighborVec::new()});
         if y != 0 {
           for prev in
               id_grid[y -1][(x.max(1)-1)..(x+2).min(width)].iter().flatten() {
@@ -80,21 +76,23 @@ pub fn generator(input: &str) -> PrintShop {
 }
 
 pub fn part1(input: &PrintShop) -> usize {
-  input.find_moveable().len()
+  input.find_neighbors().iter().filter(|&count| *count < PrintShop::MIN_NEIGHBORS).count()
 }
 
 pub fn part2(input: &PrintShop) -> usize {
-  let mut pending = input.find_moveable();
+  let mut neighbors = input.find_neighbors();
+  let mut pending = neighbors.iter().enumerate()
+      .filter(|(_, count)| **count < PrintShop::MIN_NEIGHBORS)
+      .map(|(id, _)| id).collect::<Vec<_>>();
   let mut moved = vec![false; input.rolls.len()];
   let mut result = 0;
   while let Some(id) = pending.pop() {
-    if !moved[id] &&
-        input.rolls[id].neighbors.iter()
-            .filter(|&id| !moved[*id]).count() < PrintShop::MIN_NEIGHBORS {
+    if !moved[id] && neighbors[id] < PrintShop::MIN_NEIGHBORS {
       moved[id] = true;
       result += 1;
       for neighbor in &input.rolls[id].neighbors {
         if !moved[*neighbor] {
+          neighbors[*neighbor] -= 1;
           pending.push(*neighbor);
         }
       }
