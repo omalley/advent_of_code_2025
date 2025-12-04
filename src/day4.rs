@@ -1,88 +1,104 @@
-type Position = i32;
+use smallvec::SmallVec;
 
-#[derive(Clone,Debug)]
+type RollId = usize;
+type NeighborVec = SmallVec<[RollId; 8]>;
+
+#[derive(Debug)]
+pub struct Roll {
+  neighbors: NeighborVec,
+}
+
+#[derive(Debug)]
 pub struct PrintShop {
-  rows: Vec<Vec<bool>>,
-  width: Position,
+  rolls: Vec<Roll>,
 }
 
 impl PrintShop {
-  fn is_empty(&self, x: Position, y: Position) -> bool {
-    x < 0 || y < 0 || x >= self.width || y >= self.rows.len() as Position ||
-        !self.rows[y as usize][x as usize]
-  }
+  const MIN_NEIGHBORS: usize = 4;
 
-  fn remove(&mut self, x: Position, y: Position) {
-    self.rows[y as usize][x as usize] = false;
-  }
-
-  fn is_moveable(&self, x: Position, y: Position) -> bool {
-    if self.is_empty(x, y) {
-      false
-    } else {
-      let mut result = 0;
-      for delta_x in -1..=1 {
-        for delta_y in -1..=1 {
-          if (delta_x != 0 || delta_y != 0) && !self.is_empty(x + delta_x, y + delta_y) {
-            result += 1;
-          }
-        }
-      }
-      result < 4
+  /// Parse a grid location
+  fn parse_char(ch: char) -> Result<bool, String> {
+    match ch {
+      '@' => Ok(true),
+      '.' => Ok(false),
+      _ => Err(format!("Invalid character: {ch}")),
     }
   }
-}
 
-fn parse_line(line: &str) -> Result<Vec<bool>, String> {
-  line.chars().map(|c| match c {
-                               '@' => Ok(true),
-                               '.' => Ok(false),
-                               _ => Err(format!("Invalid character: {c}")),
-                             })
-      .collect::<Result<Vec<bool>,String>>()
+  /// Read the input and return a grid of the roll id at each
+  /// location and the number of roll ids.
+  fn assign_ids(input: &str) -> Result<(Vec<Vec<Option<RollId>>>, usize), String> {
+    let mut next_id = 0;
+    let result = input.lines().map(|line| {
+      line.chars().map(|ch| if Self::parse_char(ch)? {
+        next_id += 1;
+        Ok(Some(next_id - 1))
+      } else {
+        Ok(None)
+      }).collect::<Result<Vec<Option<usize>>, String>>()
+    }).collect::<Result<Vec<Vec<Option<usize>>>, String>>()?;
+    Ok((result, next_id))
+  }
+
+  fn add_neighbors(&mut self, left: RollId, right: RollId) {
+    self.rolls[left].neighbors.push(right);
+    self.rolls[right].neighbors.push(left);
+  }
+
+  fn find_moveable(&self) -> Vec<RollId> {
+    self.rolls.iter().enumerate()
+        .filter(|(_, roll)| roll.neighbors.len() < Self::MIN_NEIGHBORS)
+        .map(|(i, _)| i)
+        .collect()
+  }
 }
 
 pub fn generator(input: &str) -> PrintShop {
-  let rows = input.lines().map(parse_line)
-      .collect::<Result<Vec<Vec<bool>>,String>>()
-      .expect("Can't parse input");
-  let width = rows.iter().map(|r| r.len()).max().unwrap() as Position;
-  PrintShop{rows, width}
+  let (id_grid, max_id) =
+      PrintShop::assign_ids(input).expect("Invalid input");
+  let width = id_grid[0].len();
+  let mut result = PrintShop{rolls: Vec::with_capacity(max_id)};
+  for (y, row) in id_grid.iter().enumerate() {
+    for (x, loc) in row.iter().enumerate() {
+      if let Some(id) = loc {
+        result.rolls.push(Roll{neighbors: NeighborVec::new()});
+        if y != 0 {
+          for prev_x in (x.max(1)-1)..(x+2).min(width) {
+            if let Some(prev) = id_grid[y-1][prev_x] {
+              result.add_neighbors(prev, *id);
+            }
+          }
+        }
+        if x != 0 {
+          if let Some(prev) = row[x - 1] {
+            result.add_neighbors(prev, *id);
+          }
+        }
+      }
+    }
+  }
+  result
 }
 
 pub fn part1(input: &PrintShop) -> usize {
-  let mut result = 0;
-  for y in 0..(input.rows.len() as Position) {
-    for x in 0..input.width {
-      if input.is_moveable(x, y) {
-        result += 1;
-      }
-    }
-  }
-  result
-}
-
-fn find_removeable(input: &PrintShop) -> Vec<(Position, Position)> {
-  let mut result = Vec::new();
-  for y in 0..(input.rows.len() as Position) {
-    for x in 0..input.width {
-      if input.is_moveable(x, y) {
-        result.push((x,y));
-      }
-    }
-  }
-  result
+  input.find_moveable().len()
 }
 
 pub fn part2(input: &PrintShop) -> usize {
-  let mut input = input.clone();
+  let mut pending = input.find_moveable();
+  let mut moved = vec![false; input.rolls.len()];
   let mut result = 0;
-  loop {
-    let to_remove = find_removeable(&input);
-    if to_remove.is_empty() { break; }
-    result += to_remove.len();
-    for (x, y) in to_remove {
-      input.remove(x, y);
+  while let Some(id) = pending.pop() {
+    if !moved[id] &&
+        input.rolls[id].neighbors.iter()
+            .filter(|&id| !moved[*id]).count() < PrintShop::MIN_NEIGHBORS {
+      moved[id] = true;
+      result += 1;
+      for neighbor in &input.rolls[id].neighbors {
+        if !moved[*neighbor] {
+          pending.push(*neighbor);
+        }
+      }
     }
   }
   result
