@@ -4,7 +4,7 @@ use std::vec::Vec;
 type Number = u64;
 
 #[derive(Debug)]
-enum Operation {ADD, MULTIPLY}
+enum Operation {Add, Multiply}
 
 #[derive(Debug)]
 pub struct NumberTable {
@@ -19,8 +19,8 @@ fn parse_int(s: &str) -> Result<Number, String> {
 
 fn parse_operator(s: &str) -> Result<Operation, String> {
   match s.trim() {
-    "+" => Ok(Operation::ADD),
-    "*" => Ok(Operation::MULTIPLY),
+    "+" => Ok(Operation::Add),
+    "*" => Ok(Operation::Multiply),
     _ => Err(format!("Unknown operator: '{s}'"))
   }
 }
@@ -46,9 +46,11 @@ pub fn generator(input: &str) -> NumberTable {
   // The column that we are appending to.
   let mut column = 0;
   let mut vertical = vec![Vec::new(); operations.len()];
+  // build the string using one character from each data line.
   while let Some(line) = iters.iter_mut()
       .map(|itr| itr.next())
       .collect::<Option<String>>() {
+    // if the line is empty, we go to the next problem.
     if line.trim().is_empty() {
       column += 1;
     } else {
@@ -58,20 +60,20 @@ pub fn generator(input: &str) -> NumberTable {
   NumberTable { data, vertical, operations }
 }
 
-pub fn part1(input: &NumberTable) -> Number {
-  input.data.iter().zip(input.operations.iter())
+fn calculate_problem(nums: &[Vec<Number>], ops: &[Operation]) -> Number {
+  nums.iter().zip(ops.iter())
       .map(|(row, op)| match op {
-        Operation::ADD => row.iter().sum::<Number>(),
-        Operation::MULTIPLY => row.iter().product::<Number>(),
+        Operation::Add => row.iter().sum::<Number>(),
+        Operation::Multiply => row.iter().product::<Number>(),
       } ).sum()
 }
 
+pub fn part1(input: &NumberTable) -> Number {
+  calculate_problem(&input.data, &input.operations)
+}
+
 pub fn part2(input: &NumberTable) -> Number {
-  input.vertical.iter().zip(input.operations.iter())
-      .map(|(row, op)| match op {
-        Operation::ADD => row.iter().sum::<Number>(),
-        Operation::MULTIPLY => row.iter().product::<Number>(),
-      } ).sum()
+  calculate_problem(&input.vertical, &input.operations)
 }
 
 #[cfg(test)]

@@ -31,7 +31,7 @@ impl Kitchen {
       deduped.push(prev);
     }
     good.clear();
-    good.extend(deduped.drain(..));
+    good.append(&mut deduped);
   }
 
   fn is_good(&self, ingredient: IngredientId) -> bool {
