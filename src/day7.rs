@@ -1,97 +1,66 @@
 use std::vec::Vec;
-use itertools::Itertools;
-use itertools::EitherOrBoth::{Right, Both};
 
 type Column = usize;
 
 #[derive(Debug)]
 pub struct Manifold {
   start: Column,
-  splits: Vec<Vec<Column>>,
+  splits: Vec<Vec<bool>>,
 }
 
-#[derive(Debug)]
-enum Spot {
-  Start(Column),
-  Splitter(Column),
-}
-
-fn parse_line(s: &str) -> Vec<Spot> {
-  s.chars().enumerate().flat_map(|(col, ch) |
-      match ch {
-        '.' => None,
-        '^' => Some(Spot::Splitter(col)),
-        'S' => Some(Spot::Start(col)),
-        _ => panic!("Unknown spot: '{s}'")})
-      .collect()
-}
+const START: char = 'S';
+const SPLIT: char = '^';
 
 pub fn generator(input: &str) -> Manifold {
-  let grid: Vec<Vec<Spot>> = input.lines().map(parse_line)
-      .filter(|v| !v.is_empty())
+  let mut lines = input.lines();
+  let start = lines.next().expect("Missing first line!")
+      .chars().position(|c| c == START).expect("Can't find start position");
+  let splits = lines.map(|line| line.chars()
+        .map(|ch| ch == SPLIT)
+        .collect())
+      .filter(|row: &Vec<bool>| row.iter().any(|b| *b))
       .collect();
-  let start = if let [Spot::Start(col)] = grid[0][..] {
-    col
-  } else {
-    panic!("No start column! in {:?}", grid[0])
-  };
-  let splits = grid[1..].iter()
-      .map(|row| row.iter()
-          .map(|s| if let Spot::Splitter(col) = s { col}
-                          else {panic!("Unknown spot {s:?}")})
-          .cloned()
-          .collect())
-      .collect();
-  Manifold { start, splits }
+  Manifold{start, splits}
 }
 
 pub fn part1(input: &Manifold) -> usize {
-  let mut streams = vec![input.start];
+  // keep track of where there are streams
+  let mut streams = vec![false; input.splits[0].len() + 1];
+  streams[input.start] = true;
+  // how many splitters have we reached?
   let mut result = 0;
   for row in &input.splits {
-    let new_streams: Vec<Column> = row.iter().merge_join_by(streams.iter(), Ord::cmp)
-        .flat_map(|cmp|
-            match cmp {
-              Both(col, _) => {result += 1; vec![*col - 1, *col + 1].into_iter()},
-              Right(col) => vec![*col].into_iter(),
-              _ => vec![].into_iter(),
-            }).dedup().collect();
-    streams = new_streams;
+    for (x, split) in row.iter().enumerate() {
+      if *split && streams[x] {
+        result += 1;
+        streams[x-1] = true;
+        streams[x] = false;
+        streams[x+1] = true;
+      }
+    }
   }
   result
 }
 
-#[derive(Clone,Debug)]
-struct ColumnCount {
-  column: Column,
-  count: usize,
-}
-
-impl ColumnCount {
-  fn new(column: Column, count: usize) -> Self {
-    ColumnCount { column, count }
-  }
-}
-
 pub fn part2(input: &Manifold) -> usize {
-  let mut streams = vec![ColumnCount::new(input.start, 1)];
+  // keep track of where there are streams
+  let mut streams = vec![0; input.splits[0].len() + 1];
+  streams[input.start] = 1;
   for row in &input.splits {
-    let new_streams: Vec<ColumnCount> = row.iter()
-        .merge_join_by(streams.iter(),
-                |&left, &right| Column::cmp(left, &right.column))
-        .flat_map(|cmp|
-            match cmp {
-              Both(_, right) =>
-                vec![ColumnCount::new(right.column - 1, right.count),
-                     ColumnCount::new(right.column + 1, right.count)].into_iter(),
-              Right(col) => vec![(*col).clone()].into_iter(),
-              _ => vec![].into_iter(),
-            }).collect();
-    streams = new_streams.into_iter().chunk_by(|stream| stream.column).into_iter()
-        .map(|(col, itr)| ColumnCount::new(col, itr.into_iter()
-            .map(|cc| cc.count).sum())).collect();
+    let mut prev = 0;
+    for (x, split) in row.iter().enumerate() {
+      if *split {
+        let incoming = streams[x];
+        streams[x-1] += incoming;
+        streams[x] = prev;
+        prev = incoming;
+      } else {
+        streams[x] += prev;
+        prev = 0;
+      }
+    }
   }
-  streams.iter().map(|cc| cc.count).sum()
+  streams.iter().sum()
 }
 
 #[cfg(test)]
