@@ -7,9 +7,8 @@ type Number = u64;
 enum Operation {Add, Multiply}
 
 #[derive(Debug)]
-pub struct NumberTable {
-  data: Vec<Vec<Number>>,
-  vertical: Vec<Vec<Number>>,
+pub struct NumberTable<'a> {
+  lines: Vec<&'a str>,
   operations: Vec<Operation>,
 }
 
@@ -18,34 +17,52 @@ fn parse_int(s: &str) -> Result<Number, String> {
 }
 
 fn parse_operator(s: &str) -> Result<Operation, String> {
-  match s.trim() {
+  match s {
     "+" => Ok(Operation::Add),
     "*" => Ok(Operation::Multiply),
     _ => Err(format!("Unknown operator: '{s}'"))
   }
 }
 
-pub fn generator(input: &str) -> NumberTable {
+pub fn generator(input: & str) -> NumberTable<'_> {
   let mut lines: Vec<&str> = input.lines().collect();
   let operations = lines.pop().unwrap().split_whitespace()
       .map(parse_operator)
-      .collect::<Result<Vec<Operation>,String>>()
+      .collect::<Result<Vec<Operation>, String>>()
       .expect("Bad operations");
-  let mut data = vec![Vec::new(); operations.len()];
-  for line in &lines {
+  NumberTable{lines, operations}
+}
+
+fn calculate_problems(nums: &[Vec<Number>], ops: &[Operation]) -> Number {
+  nums.iter().zip(ops.iter())
+      .map(|(row, op)| match op {
+        Operation::Add => row.iter().sum::<Number>(),
+        Operation::Multiply => row.iter().product::<Number>(),
+      } ).sum()
+}
+
+fn parse_part1(table: &NumberTable) -> Vec<Vec<Number>> {
+  let mut result =
+      vec![Vec::with_capacity(table.lines.len()); table.operations.len()];
+  for &line in &table.lines {
     for (i, word) in line.split_whitespace().enumerate() {
-      data[i].push(parse_int(word).expect("Bad data"));
+      result[i].push(parse_int(word).expect("Bad data"));
     }
   }
-  // Parse the data vertically for part 2.
+  result
+}
+
+/// Parse the data vertically for part 2.
+fn parse_part2(table: &NumberTable) -> Vec<Vec<Number>> {
   // Build each line from a column of numbers. Move to a problem when we find
   // a blank line.
   // Create a chars iterator for each of the data lines.
-  let mut iters: Vec<Chars<'_>> = lines.iter()
+  let mut iters: Vec<Chars<'_>> = table.lines.iter()
       .map(|line| line.chars()).collect();
   // The column that we are appending to.
   let mut column = 0;
-  let mut vertical = vec![Vec::new(); operations.len()];
+  let mut result =
+      vec![Vec::with_capacity(table.lines.len()); table.operations.len()];
   // build the string using one character from each data line.
   while let Some(line) = iters.iter_mut()
       .map(|itr| itr.next())
@@ -54,26 +71,20 @@ pub fn generator(input: &str) -> NumberTable {
     if line.trim().is_empty() {
       column += 1;
     } else {
-      vertical[column].push(parse_int(line.trim()).expect("Can't parse integer - '{line}'"));
+      result[column].push(parse_int(line.trim()).expect("Can't parse integer - '{line}'"));
     }
   }
-  NumberTable { data, vertical, operations }
+  result
 }
 
-fn calculate_problem(nums: &[Vec<Number>], ops: &[Operation]) -> Number {
-  nums.iter().zip(ops.iter())
-      .map(|(row, op)| match op {
-        Operation::Add => row.iter().sum::<Number>(),
-        Operation::Multiply => row.iter().product::<Number>(),
-      } ).sum()
-}
+
 
 pub fn part1(input: &NumberTable) -> Number {
-  calculate_problem(&input.data, &input.operations)
+  calculate_problems(&parse_part1(input), &input.operations)
 }
 
 pub fn part2(input: &NumberTable) -> Number {
-  calculate_problem(&input.vertical, &input.operations)
+  calculate_problems(&parse_part2(input), &input.operations)
 }
 
 #[cfg(test)]
