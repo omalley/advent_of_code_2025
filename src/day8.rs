@@ -1,6 +1,6 @@
 use std::vec::Vec;
 use itertools::Itertools;
-use union_find::{QuickUnionUf, UnionBySize, UnionFind};
+use union_find::{QuickFindUf, QuickUnionUf, UnionBySize, UnionFind};
 
 type Position = usize;
 
@@ -34,7 +34,7 @@ fn calculate_best(input: &[Junction], limit: usize) -> usize {
       .map(|pos| (input[pos[0]].distance_sqr(&input[pos[1]]), pos[0], pos[1] ))
       .collect();
   distances.sort_unstable_by(|x, y| (x.0).cmp(&y.0));
-  let mut networks = QuickUnionUf::<UnionBySize>::new(input.len());
+  let mut networks = QuickFindUf::<UnionBySize>::new(input.len());
   for (_, left, right) in distances.iter().take(limit) {
     networks.union(*left, *right);
   }
