@@ -52,6 +52,10 @@ fn parse_part1(table: &NumberTable) -> Vec<Vec<Number>> {
   result
 }
 
+pub fn part1(input: &NumberTable) -> Number {
+  calculate_problems(&parse_part1(input), &input.operations)
+}
+
 /// Parse the data vertically for part 2.
 fn parse_part2(table: &NumberTable) -> Vec<Vec<Number>> {
   // Build each line from a column of numbers. Move to a problem when we find
@@ -75,12 +79,6 @@ fn parse_part2(table: &NumberTable) -> Vec<Vec<Number>> {
     }
   }
   result
-}
-
-
-
-pub fn part1(input: &NumberTable) -> Number {
-  calculate_problems(&parse_part1(input), &input.operations)
 }
 
 pub fn part2(input: &NumberTable) -> Number {
