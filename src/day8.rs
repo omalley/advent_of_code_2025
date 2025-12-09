@@ -30,9 +30,10 @@ pub fn generator(input: &str) -> Vec<Junction> {
 }
 
 fn calculate_best(input: &[Junction], limit: usize) -> usize {
-  let mut distances: Vec<(Position,usize,usize)> = (0..input.len()).combinations(2)
-      .map(|pos| (input[pos[0]].distance_sqr(&input[pos[1]]), pos[0], pos[1] ))
-      .collect();
+  let mut distances: Vec<(Position, usize, usize) > =
+      Vec::with_capacity(input.len() * input.len());
+  distances.extend((0..input.len()).combinations(2)
+      .map(|pos| (input[pos[0]].distance_sqr(&input[pos[1]]), pos[0], pos[1] )));
   distances.sort_unstable_by(|x, y| (x.0).cmp(&y.0));
   let mut networks = QuickFindUf::<UnionBySize>::new(input.len());
   for (_, left, right) in distances.iter().take(limit) {
