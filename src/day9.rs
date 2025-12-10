@@ -53,10 +53,7 @@ enum TileColor {
 
 impl TileColor {
   fn flips_inside(&self) -> bool {
-    match self {
-      TileColor::Red(true) | TileColor::Vertical => true,
-      _ => false,
-    }
+    matches!(self, TileColor::Red(true) | TileColor::Vertical)
   }
 
   fn is_tiled(&self) -> bool {
