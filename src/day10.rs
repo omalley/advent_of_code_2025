@@ -1,14 +1,15 @@
 use std::collections::VecDeque;
 use std::vec::Vec;
+use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 
-type LightMask = u16;
+type LightMask = SmallVec<[bool; 16]>;
 
 #[derive(Debug)]
 pub struct Machine {
-  mask: LightMask,
   goal: LightMask,
   buttons: Vec<LightMask>,
-  energy: Vec<u64>,
+  energy: Vec<usize>,
 }
 
 impl Machine {
@@ -17,12 +18,14 @@ impl Machine {
         .ok_or(format!("Missing paren: '{phrase}'"))?;
     let phrase = phrase.strip_suffix(")")
         .ok_or(format!("Missing paren: '{phrase}'"))?;
-    let nums = phrase.split(',').map(parse_int).collect::<Result<Vec<_>, _>>()?;
-    Ok(nums.iter().fold(0_u16,
-                        |acc, num| acc | 2_u16.pow(bits as u32 - *num as u32 - 1)))
+    let mut result = smallvec![false; bits];
+    for num in phrase.split(',').map(parse_int).collect::<Result<Vec<_>, _>>()? {
+      result[num] = true;
+    }
+    Ok(result)
   }
 
-  fn parse_enery(phrase: &str) -> Result<Vec<u64>, String> {
+  fn parse_enery(phrase: &str) -> Result<Vec<usize>, String> {
     let phrase = phrase.strip_suffix("}")
         .ok_or(format!("Missing brace: '{phrase}'"))?;
     phrase.split(",").map(parse_int).collect::<Result<Vec<_>, _>>()
@@ -33,20 +36,23 @@ impl Machine {
         .ok_or(format!("Invalid goal: {line}"))?;
     let (button_str, energy_str) = rest.split_once(" {")
         .ok_or(format!("Invalid button: {rest}"))?;
-    let mask = 2_u16.pow((goal_str.len() - 1) as u32) as u16 - 1;
-    let goal = goal_str[1..].chars()
-        .map(|c| if c == '#' { 1 } else { 0 })
-        .fold(0, |acc, d| acc * 2 + d);
+    let goal: LightMask = goal_str[1..].chars()
+        .map(|c| c == '#')
+        .collect();
     let mut buttons = button_str.split(" ")
         .map(|s| Self::parse_button(s, goal_str.len() - 1))
         .collect::<Result<Vec<_>, _>>()?;
     buttons.sort_unstable();
     let energy = Self::parse_enery(energy_str)?;
-    Ok(Machine{mask, goal, buttons, energy})
+    Ok(Machine{goal, buttons, energy})
+  }
+
+  fn to_mask(light_mask: &LightMask) -> u64 {
+    light_mask.iter().fold(0, |acc, &b| acc * 2 + if b {1} else {0})
   }
 }
 
-fn parse_int(s: &str) -> Result<u64, String> {
+fn parse_int(s: &str) -> Result<usize, String> {
   s.parse().map_err(|_| format!("Can't parse integer - '{s}'"))
 }
 
@@ -55,17 +61,16 @@ pub fn generator(input: &str) -> Vec<Machine> {
 }
 
 fn find_part1(machine: &Machine) -> usize {
-  let mut pending: VecDeque<(usize, LightMask)> = VecDeque::new();
-  pending.push_back((0, 0));
-  while let Some((count, lights)) = pending.pop_front() {
-    if lights == machine.goal {
-      return count;
-    }
-    for button in &machine.buttons {
-      pending.push_back((count + 1, button ^ lights));
+  let goal = Machine::to_mask(&machine.goal);
+  let buttons : Vec<u64> = machine.buttons.iter().map(|b| Machine::to_mask(b)).collect();
+  for pushes in 0..buttons.len() {
+    for combo in buttons.iter().combinations(pushes) {
+      if goal == combo.iter().fold(0, |acc, &b| acc ^ b) {
+        return pushes;
+      }
     }
   }
-  unreachable!()
+  panic!("No solution found");
 }
 
 pub fn part1(input: &[Machine]) -> usize {
