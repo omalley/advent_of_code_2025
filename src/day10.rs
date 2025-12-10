@@ -1,8 +1,6 @@
-use std::path::Path;
 use std::vec::Vec;
 use array2d::Array2D;
 use itertools::Itertools;
-use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, Point, Rect, Transform};
 
 type Position = usize;
 
@@ -150,33 +148,6 @@ impl SimplifiedGrid {
   }
 }
 
-fn to_point(tile: &Tile) -> Point {
-  Point::from_xy(tile.position[0] as f32, tile.position[1] as f32)
-}
-
-#[allow(unused)]
-fn paint(input: &[Tile], filename: &Path, first: usize, second: usize) {
-  let mut path_builder = PathBuilder::new();
-  path_builder.move_to(input[0].position[0] as f32, input[0].position[1] as f32);
-  for next in input[1..].iter() {
-    path_builder.line_to(next.position[0] as f32, next.position[1] as f32);
-  }
-  path_builder.close();
-  let path = path_builder.finish().unwrap();
-  let mut paint = Paint::default();
-  paint.set_color_rgba8(74, 207, 73, 255);
-  paint.anti_alias = true;
-  let mut pixmap = Pixmap::new(2100, 2100).unwrap();
-  let scale = 2000_f32 / path.bounds().bottom().max(path.bounds().right());
-  let scale = Transform::from_scale(scale, scale);
-  pixmap.fill_path(&path, &paint, FillRule::EvenOdd, scale, None);
-  let solution = PathBuilder::from_rect(Rect::from_points(
-    &[to_point(&input[first]), to_point(&input[second])]).unwrap());
-  paint.set_color_rgba8(240, 30, 5, 200);
-  pixmap.fill_path(&solution, &paint, FillRule::EvenOdd, scale, None);
-  pixmap.save_png(filename).unwrap();
-}
-
 pub fn part2(input: &[Tile]) -> usize {
   let mut grid = SimplifiedGrid::new(input);
   for (left, right) in (0..input.len()).tuple_windows() {
@@ -188,13 +159,6 @@ pub fn part2(input: &[Tile]) -> usize {
       .filter(|pos| grid.is_tiled(pos[0], pos[1]))
       .map(|pos| input[pos[0]].area(&input[pos[1]]))
       .max().expect("No pairs found!")
-  /*
-  for pos in (0..input.len()).combinations(2) {
-    if grid.is_tiled(pos[0], pos[1]) && input[pos[0]].area(&input[pos[1]]) == result {
-      paint(input, &Path::new("day9.png"), pos[0], pos[1]);
-      break;
-    }
-  } */
 }
 
 #[cfg(test)]
