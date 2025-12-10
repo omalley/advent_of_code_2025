@@ -39,7 +39,7 @@ fn find_splits(input: &[Tile], dim: usize) -> Vec<Position> {
   let mut values = input.iter().map(|rt| rt.position[dim]).collect::<Vec<_>>();
   values.sort_unstable();
   values.dedup();
-  values.iter().flat_map(|v| [*v, *v + 1]).dedup().collect()
+  values
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
