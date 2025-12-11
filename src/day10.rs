@@ -79,30 +79,84 @@ pub fn part1(input: &[Machine]) -> usize {
   input.iter().map(solve_part1).sum()
 }
 
-fn solve_part2_by_button(goal: &Vec<usize>, buttons: &[Button], pushes: usize) -> bool {
-  if pushes == 0 || buttons.is_empty() {
-    goal.iter().all(|x| *x == 0)
+enum BestButton {
+  Only(usize, usize), // must pick given column with given number
+  Best(usize), // should pick given column
+  None, // nothing will work
+}
+
+fn best_button(goal: &[usize], buttons: &[Button], remaining: &[bool]) -> BestButton {
+  // how many remaining buttons can hit each lamp?
+  // the second component is the first such button
+  let mut buttons_by_lamp: Vec<(usize, usize)> = vec![(0, 0); goal.len()];
+  for b in 0..buttons.len() {
+    if remaining[b] {
+      for lamp in &buttons[b] {
+        if buttons_by_lamp[*lamp].0 == 0 {
+          buttons_by_lamp[*lamp].1 = b;
+        }
+        buttons_by_lamp[*lamp].0 += 1;
+      }
+    }
+  }
+  let mut best_lamp: Option<(usize,usize)> = None;
+  for (lamp, (count, button)) in buttons_by_lamp.iter().enumerate() {
+    if *count == 0 && goal[lamp] != 0 {
+      return BestButton::None;
+    } else if *count == 1 {
+      return BestButton::Only(*button, goal[lamp]);
+    } else if let Some((prev_lamp, prev_count)) = best_lamp &&
+        (prev_count < *count || (prev_count == *count && goal[prev_lamp] > goal[lamp])) {
+      // pass
+    } else if *count != 0 {
+      best_lamp = Some((lamp, *count));
+    }
+  }
+  if let Some((lamp, _)) = best_lamp {
+    BestButton::Best(buttons_by_lamp[lamp].1)
   } else {
-    let max_pushes = pushes.min(buttons[0].iter().map(|i| goal[*i]).min().unwrap());
-    for our_pushes in (0..=max_pushes).rev() {
+    BestButton::None
+  }
+}
+
+fn solve_part2_by_button(goal: &Vec<usize>, buttons: &[Button], pushes: usize,
+                         remaining: &mut [bool]) -> bool {
+  if pushes == 0 || remaining.iter().all(|b| !*b) {
+    goal.iter().all(|x| *x == 0)
+  } else if pushes < *goal.iter().max().unwrap() {
+    false
+  } else {
+    let (best_button, min_pushes) = match best_button(goal, buttons, remaining) {
+      BestButton::Only(button, count) => (button, count),
+      BestButton::Best(button) => (button, 0),
+      BestButton::None => return false,
+    };
+    assert!(remaining[best_button]);
+    remaining[best_button] = false;
+    let max_pushes = pushes.min(buttons[best_button].iter()
+        .map(|i| goal[*i]).min().unwrap());
+    for our_pushes in (min_pushes..=max_pushes).rev() {
       let mut sub_goal = goal.clone();
-      for b in &buttons[0] {
+      for b in &buttons[best_button] {
         sub_goal[*b] -= our_pushes;
       }
-      if solve_part2_by_button(&sub_goal, &buttons[1..], pushes - our_pushes) {
+      if solve_part2_by_button(&sub_goal, &buttons, pushes - our_pushes, remaining) {
         return true;
       }
     }
+    remaining[best_button] = true;
     false
   }
 }
 
 fn solve_part2(machine: &Machine) -> usize {
   println!("Starting {machine:?}");
+  let mut remaining = vec![true; machine.buttons.len()];
   // we need at least the minimum of the energy and no worse than the sum.
-  for pushes in *(machine.energy.iter().min().unwrap())..=
+  for pushes in *(machine.energy.iter().max().unwrap())..=
       machine.energy.iter().sum::<usize>() {
-    if solve_part2_by_button(&machine.energy, &machine.buttons, pushes) {
+    println!("Checking {pushes} pushes");
+    if solve_part2_by_button(&machine.energy, &machine.buttons, pushes, &mut remaining) {
       return pushes;
     }
   }
