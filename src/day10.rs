@@ -119,7 +119,7 @@ fn best_button(goal: &[usize], buttons: &[Button], remaining: &[bool]) -> BestBu
   }
 }
 
-fn solve_part2_by_button(goal: &Vec<usize>, buttons: &[Button], pushes: usize,
+fn solve_part2_by_button(goal: &[usize], buttons: &[Button], pushes: usize,
                          remaining: &mut [bool]) -> bool {
   if pushes == 0 || remaining.iter().all(|b| !*b) {
     goal.iter().all(|x| *x == 0)
@@ -136,11 +136,11 @@ fn solve_part2_by_button(goal: &Vec<usize>, buttons: &[Button], pushes: usize,
     let max_pushes = pushes.min(buttons[best_button].iter()
         .map(|i| goal[*i]).min().unwrap());
     for our_pushes in (min_pushes..=max_pushes).rev() {
-      let mut sub_goal = goal.clone();
+      let mut sub_goal = goal.to_owned();
       for b in &buttons[best_button] {
         sub_goal[*b] -= our_pushes;
       }
-      if solve_part2_by_button(&sub_goal, &buttons, pushes - our_pushes, remaining) {
+      if solve_part2_by_button(&sub_goal, buttons, pushes - our_pushes, remaining) {
         return true;
       }
     }
