@@ -79,7 +79,7 @@ pub fn part1(input: &Reactor) -> usize {
   let start = input.find_name(PART1_START_NAME);
   let mut streams: Vec<usize> = vec![0; input.names.len()];
   streams[start] = 1;
-  for n in &input.toposort[start..] {
+  for n in &input.toposort {
     if *n < streams.len() && streams[*n] > 0 {
       let new_streams = streams[*n];
       streams[*n] = 0;
@@ -120,7 +120,7 @@ pub fn part2(input: &Reactor) -> usize {
   let fft = input.find_name("fft");
   let mut streams: Vec<StreamCounts> = vec![StreamCounts::default(); input.names.len()];
   streams[start] = StreamCounts{orig: 1, ..Default::default()};
-  for n in &input.toposort[start..] {
+  for n in &input.toposort {
     if *n < streams.len() && !streams[*n].is_empty() {
       let mut new_streams = streams[*n].clone();
       if *n == dac {
